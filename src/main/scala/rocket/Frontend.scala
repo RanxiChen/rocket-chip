@@ -58,6 +58,7 @@ class FrontendIO(implicit p: Parameters) extends CoreBundle()(p) {
   val npc = Input(UInt(vaddrBitsExtended.W))
   val perf = Input(new FrontendPerfEvents())
   val progress = Output(Bool())
+  val nul_stop_fetch = Output(Bool())
 }
 
 class Frontend(val icacheParams: ICacheParams, staticIdForMetadataUseOnly: Int)(implicit p: Parameters) extends LazyModule {
@@ -105,7 +106,7 @@ class FrontendModule(outer: Frontend) extends LazyModuleImp(outer)
     !fq.io.mask(fq.io.mask.getWidth-3) ||
     (!fq.io.mask(fq.io.mask.getWidth-2) && (!s1_valid || !s2_valid)) ||
     (!fq.io.mask(fq.io.mask.getWidth-1) && (!s1_valid && !s2_valid))
-  val s0_valid = io.cpu.req.valid || s0_fq_has_space
+  val s0_valid = (io.cpu.req.valid || s0_fq_has_space) && (!io.cpu.nul_stop_fetch) 
   s1_valid := s0_valid
   val s1_pc = Reg(UInt(vaddrBitsExtended.W))
   val s1_speculative = Reg(Bool())
