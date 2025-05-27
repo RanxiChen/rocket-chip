@@ -58,6 +58,7 @@ class FrontendIO(implicit p: Parameters) extends CoreBundle()(p) {
   val npc = Input(UInt(vaddrBitsExtended.W))
   val perf = Input(new FrontendPerfEvents())
   val progress = Output(Bool())
+  val _nul_curpc = Input(UInt(39.W))
 }
 
 class Frontend(val icacheParams: ICacheParams, staticIdForMetadataUseOnly: Int)(implicit p: Parameters) extends LazyModule {
@@ -130,6 +131,7 @@ class FrontendModule(outer: Frontend) extends LazyModuleImp(outer)
   val npc = Mux(s2_replay, s2_pc, predicted_npc)
 
   s1_pc := io.cpu.npc
+  io.cpu._nul_curpc := s1_pc
   // consider RVC fetches across blocks to be non-speculative if the first
   // part was non-speculative
   val s0_speculative =
