@@ -1091,7 +1091,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
   
   _nul_invoke_ready := ibuf.io.imem.ready 
 
-  nulctrl.io.cpu.priv := Mux((io.imem._nul_curpc < "h10000000".U) || (io.imem._nul_curpc >= "h80000000".U), csr.io.status.prv, 0.U)
+  nulctrl.io.cpu.priv := csr.io.status.prv
+  nulctrl.io.cpu.inited := io.imem._nul_curpc >= "h80000000".U
 
   nulctrl.io.cpu.regacc_rdata := 0.U
   nulctrl.io.cpu.regacc_busy := false.B
@@ -1103,6 +1104,8 @@ class Rocket(tile: RocketTile)(implicit p: Parameters) extends CoreModule()(p)
 
   nulctrl.io.rxd := io.nulrxd
   io.nultxd := nulctrl.io.txd
+
+  io.dbg_port := Cat(_nul_stop_fetch, nulctrl.io.dgb_sta(4,0))
 
   if (enableCommitLog) {
     val t = csr.io.trace(0)

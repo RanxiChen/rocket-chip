@@ -7,6 +7,7 @@ import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.prci.{ResetCrossingType, NoResetCrossing}
 import freechips.rocketchip.tile._
 import freechips.rocketchip.devices.debug.{HasPeripheryDebug}
+import chisel3._
 
 case class RocketCrossingParams(
   crossingType: ClockCrossingType = SynchronousCrossing(),
@@ -28,6 +29,9 @@ trait HasRocketTiles extends HasTiles { this: BaseSubsystem =>
   def coreMonitorBundles = (rocketTiles map { t =>
     t.module.core.rocketImpl.coreMonitorBundle
   }).toList
+  val dbg_portNexus = BundleBridgeNexusNode[freechips.rocketchip.tile.dbg_port]()
+  val dbg_portNodes = rocketTiles.map(_.dbg_portNode)
+  dbg_portNodes.foreach(dbg_portNexus := _)
 }
 
 class RocketSubsystem(implicit p: Parameters) extends BaseSubsystem with HasRocketTiles with HasPeripheryDebug {
@@ -35,4 +39,8 @@ class RocketSubsystem(implicit p: Parameters) extends BaseSubsystem with HasRock
 }
 
 class RocketSubsystemModuleImp[+L <: RocketSubsystem](_outer: L) extends BaseSubsystemModuleImp(_outer)
-    with HasTilesModuleImp
+    with HasTilesModuleImp{
+      val dbg_portIO = outer.dbg_portNexus.in.map(_._1)
+      val dbg_port = IO(Output(UInt(8.W)))
+      dbg_port := dbg_portIO(0).data
+    }

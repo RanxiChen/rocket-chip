@@ -129,6 +129,8 @@ class RocketTileModuleImp(outer: RocketTile) extends BaseTileModuleImp(outer)
   dontTouch(core.io.nulrxd)
   dontTouch(core.io.nultxd)
 
+  outer.dbg_portSourceNode.bundle.data := core.io.dbg_port
+
   // Report unrecoverable error conditions; for now the only cause is cache ECC errors
   outer.reportHalt(List(outer.dcache.module.io.errors))
 

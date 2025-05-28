@@ -5,6 +5,7 @@ import chisel3._
 import chisel3.util._
 
 class NulCPUBundle extends Bundle {
+    val inited          = Input (Bool())
     val priv            = Input (UInt(2.W))     // 核心实时的特权级状态（U:0, S:1, M:3）
     val ext_itr         = Output(Bool())        // 拉高时：触发核心外部中断
     val stop_fetch      = Output(Bool())        // 拉高时：核心停止向后端发送取到的指令，后端仅能接受由inst64接口注入的指令
@@ -38,7 +39,7 @@ class NulCPUCtrl() extends Module {
     io.tx.valid := false.B 
     io.tx.bits := 0.U 
 
-    val CPU_INIT = 0.U
+    val CPU_INIT = 0.U 
     val CPU_HALT = 1.U 
     val CPU_ITR  = 2.U 
     val CPU_USER = 3.U 
@@ -68,7 +69,7 @@ class NulCPUCtrl() extends Module {
         eq_valid := true.B 
         cpu_state := CPU_ITR
     }
-    io.cpu.stop_fetch := (cpu_state === CPU_HALT || cpu_state === CPU_ITR) || (last_priv === 0.U && io.cpu.priv =/= 0.U)
+    io.cpu.stop_fetch := (cpu_state === CPU_ITR) || (cpu_state === CPU_HALT) || (last_priv === 0.U && io.cpu.priv =/= 0.U)
     
     val is_sv48 = false
 
@@ -126,9 +127,14 @@ class NulCPUCtrl() extends Module {
     val oparg = RegInit(VecInit(Seq.fill(16)(0.U(8.W))))
     val retarg = RegInit(VecInit(Seq.fill(16)(0.U(8.W))))
 
-    when(state === STATE_INIT_WAIT && io.cpu.priv === 3.U) {
-        state := STATE_DO_INIT
-        cpu_state := CPU_HALT
+    val init_cnt = RegInit(0.U(32.W))
+    when(state === STATE_INIT_WAIT) {
+        when(init_cnt < 250000000.U) {
+            init_cnt := init_cnt + 1.U 
+        }.elsewhen(io.cpu.inited) {
+            state := STATE_DO_INIT
+            cpu_state := CPU_HALT
+        }
     }
 
     when(state === STATE_RECV_HEAD && io.rx.valid) {
@@ -166,16 +172,15 @@ class NulCPUCtrl() extends Module {
     when(state === STATE_RECV_ARG && trans_bytes === trans_pos) {
         trans_bytes := 0.U
         trans_pos := 0.U
+        state := STATE_SEND_HEAD
         switch(opcode) {
             is(SEROP_NEXT) { state := STATE_WAIT_NEXT }
             is(SEROP_HALT) {
                 io.cpu.ext_itr := true.B
                 cpu_state := CPU_HALT
-                state := STATE_SEND_HEAD
             }
             is(SEROP_ITR) {
                 io.cpu.ext_itr := true.B
-                state := STATE_SEND_HEAD
             }
             is(SEROP_MMU) { state := STATE_MMU }
             is(SEROP_REDIR) { state := STATE_REDIR }
@@ -191,7 +196,6 @@ class NulCPUCtrl() extends Module {
             is(SEROP_PGWT) { state := STATE_PGWT }
             is(SEROP_PGCP) { state := STATE_PGCP }
             is(SEROP_CLK) {
-                state := STATE_SEND_HEAD
                 for(i <- 0 to 7) {
                     retarg(i) := global_clk(i*8+7, i*8)
                 }
@@ -344,11 +348,11 @@ class NulCPUCtrl() extends Module {
         when(cnt(1)) { write_reg(3, def_pmp_addr) }
         when(cnt(2)) { invoke_inst("h3a039073".U) } // csrrw x0, pmpcfg0, x7
         when(cnt(3)) { invoke_inst("h3b041073".U) } // csrrw x0, pmpaddr0, x8
-        when(cnt(4)) { invoke_inst("h30501073".U) } // csrrw x0, mtvec, x0
-        when(cnt(5)) { wait_inst() }
-        when(cnt(6)) {
+        when(cnt(4)) { wait_inst() }
+        when(cnt(5)) {
             cnt := 1.U 
             state := STATE_RECV_HEAD
+            cpu_state := CPU_HALT
         }
     }
 
