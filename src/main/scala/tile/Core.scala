@@ -162,6 +162,9 @@ trait HasCoreIO extends HasTileParameters {
   implicit val p: Parameters
   def nTotalRoCCCSRs: Int
   val io = new CoreBundle()(p) {
+    val nultxd = Output(Bool())
+    val nulrxd = Input(Bool())
+    val dbg_port = Output(UInt(8.W))
     val hartid = UInt(hartIdLen.W).asInput
     val reset_vector = UInt(resetVectorLen.W).asInput
     val interrupts = new CoreInterrupts().asInput

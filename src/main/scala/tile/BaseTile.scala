@@ -288,6 +288,9 @@ abstract class BaseTile private (val crossing: ClockCrossingType, q: Parameters)
   /** Node for external consumers to source a legacy instruction trace from the core. */
   val traceNode: BundleBridgeOutwardNode[TraceBundle] = traceNexus := traceSourceNode
 
+  val dbg_portSourceNode = BundleBridgeSource(() => new dbg_port)
+  val dbg_portNode: BundleBridgeOutwardNode[dbg_port] = dbg_portSourceNode
+
   protected def traceCoreParams = new TraceCoreParams()
   /** Node for core to drive instruction trace conforming to RISC-V Processor Trace spec V1.0 */
   val traceCoreSourceNode = BundleBridgeSource(() => new TraceCoreInterface(traceCoreParams))
